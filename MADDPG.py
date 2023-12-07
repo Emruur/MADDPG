@@ -103,7 +103,6 @@ class MADDPG:
                 actor_loss = -tf.reduce_mean(actor_loss)
 
             # Compute gradients and update actor weights
-            #FIXME actor_grad is none
             actor_grad = actor_tape.gradient(actor_loss, agent.actor.trainable_variables)
             agent.actor.optimizer.apply_gradients(zip(actor_grad, agent.actor.trainable_variables))
 

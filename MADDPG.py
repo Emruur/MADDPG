@@ -44,8 +44,6 @@ class MADDPG:
         if not memory.ready():
             return
 
-        print("LEARNING...")
-
         actor_states, states, actions_perm, rewards, \
         actor_new_states, states_, dones = memory.sample_buffer()
 

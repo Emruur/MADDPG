@@ -15,8 +15,8 @@ def obs_list_to_state_vector(observation):
 
 
 if __name__ == '__main__':
-    scenario= "simple_adversary"
-    env = simple_adversary_v3.parallel_env(render_mode=None)
+    scenario= "simple"
+    env = simple_v3.parallel_env(render_mode=None)
     observations, infos = env.reset()
 
     num_agents= len(env.agents)

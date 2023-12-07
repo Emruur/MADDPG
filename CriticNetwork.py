@@ -19,14 +19,14 @@ class CriticNetwork(tf.keras.Model):
         self.num_actions= n_actions
         self.num_agents= n_agents
         # Define the fully connected layers
-        print(f"Critic network for {name} is initialized with input dimension {input_dims + n_agents * n_actions} | InDims={input_dims} | num_acts={n_actions} | num_agents= {n_agents}| fc1,fc2={fc1_dims,fc2_dims}")
+        
         self.fc1 = tf.keras.layers.Dense(fc1_dims, activation='relu', 
                                          input_shape=(input_dims + n_agents * n_actions,))
         self.fc2 = tf.keras.layers.Dense(fc2_dims, activation='relu')
         self.q = tf.keras.layers.Dense(1, activation=None)
 
         # Optimizer
-        self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=beta)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=beta)
 
     def call(self, state: tf.Tensor, action: tf.Tensor) -> tf.Tensor:
         x = tf.concat([state, action], axis=1)

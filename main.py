@@ -16,8 +16,8 @@ def obs_list_to_state_vector(observation):
 
 if __name__ == '__main__':
     scenario= "simple"
-    env= simple_v3.parallel_env(render_mode= "human")
-    observations, infos = env.reset(seed=42)
+    env = simple_adversary_v3.parallel_env(render_mode=None)
+    observations, infos = env.reset()
 
     num_agents= len(env.agents)
     actor_dims= []
@@ -34,15 +34,12 @@ if __name__ == '__main__':
     print("Actor dims: ", actor_dims)
     print("Action space: ",num_actions)
 
-    time.sleep(5)
-    exit()
-
     maddpg= MADDPG(actor_dims, critic_dims, num_agents, num_actions,
                     fc1= 64, fc2= 64, alpha= 0.01, beta= 0.01, scenario=scenario, chkpt_dir= 'tmp/maddpg/')
 
     memory= MultiAgentReplayBuffer(1000000, critic_dims, actor_dims, num_actions, num_agents, batch_size= 1024)
 
-    PRINT_INTERVAL= 250
+    PRINT_INTERVAL= 50
 
     N_EPISODES= 8000
     MAX_STEPS= 23
@@ -55,7 +52,7 @@ if __name__ == '__main__':
         maddpg.load_checkpoint()
 
     for i in range(N_EPISODES):
-        dict_obs,info= env.reset(seed= 42)
+        dict_obs,info= env.reset()
         obs = [value for value in dict_obs.values()]
         score= 0
         done= [False]*num_agents

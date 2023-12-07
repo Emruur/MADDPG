@@ -88,17 +88,22 @@ class MADDPG:
                 target = rewards[:, agent_idx] + agent.gamma * critic_value_
                 critic_loss = tf.keras.losses.MSE(target, critic_value)
 
+
             # Compute gradients and update critic weights
             critic_grad = critic_tape.gradient(critic_loss, agent.critic.trainable_variables)
             agent.critic.optimizer.apply_gradients(zip(critic_grad, agent.critic.trainable_variables))
 
             with tf.GradientTape(persistent=True) as actor_tape:
                 # Forward pass through the critic using mu for actor loss
+                mu_states= tf.convert_to_tensor(actor_states[agent_idx], dtype=tf.float32)
+                all_agents_new_mu_actions[agent_idx]=  agent.actor(mu_states)
+                mu = tf.concat(all_agents_new_mu_actions, axis=1)
                 actor_loss = agent.critic(states, mu)
                 actor_loss = tf.reshape(actor_loss, [-1])
                 actor_loss = -tf.reduce_mean(actor_loss)
 
             # Compute gradients and update actor weights
+            #FIXME actor_grad is none
             actor_grad = actor_tape.gradient(actor_loss, agent.actor.trainable_variables)
             agent.actor.optimizer.apply_gradients(zip(actor_grad, agent.actor.trainable_variables))
 

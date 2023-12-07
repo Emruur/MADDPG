@@ -22,7 +22,7 @@ class ActorNetwork(tf.keras.Model):
         self.pi = tf.keras.layers.Dense(n_actions, activation=None)
 
         # Optimizer
-        self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=alpha)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=alpha)
 
     def call(self, state: tf.Tensor) -> tf.Tensor:
         x = self.fc1(state)

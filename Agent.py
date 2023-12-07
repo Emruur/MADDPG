@@ -67,32 +67,19 @@ class Agent:
             target_param.assign(tau * param + (1 - tau) * target_param)
 
 
-    def build_models(self):
-        dummy_state_actor = tf.random.normal(shape=(1, self.ad))
-        dummy_action = tf.random.normal(shape=(1, self.na))
-        dummy_state_critic = tf.random.normal(shape=(1, self.cd))
-        dummy_combined_input_critic = tf.concat([dummy_state_critic, tf.tile(dummy_action, [1, self.nag])], axis=1)
 
-        # Make dummy calls to build the models
-        self.actor(dummy_state_actor)
-        self.target_actor(dummy_state_actor)
-        self.critic(dummy_combined_input_critic, dummy_action)
-        self.target_critic(dummy_combined_input_critic, dummy_action)
     def save_models(self) -> None:
-        return
+
         # Save checkpoints for all networks
-        
-        self.build_models()
+
         self.actor.save_checkpoint()
         self.target_actor.save_checkpoint()
         self.critic.save_checkpoint()
         self.target_critic.save_checkpoint()
 
     def load_models(self) -> None:
-        return
         # Load checkpoints for all networks
         # Create dummy inputs for actor and critic networks
-        self.build_models()
 
         self.actor.load_checkpoint()
         self.target_actor.load_checkpoint()

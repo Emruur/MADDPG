@@ -46,12 +46,16 @@ if __name__ == '__main__':
     total_steps= 0
     scores= []
     evaluate= False
-    best_score= -10
+    best_score= -150
 
-    if evaluate:
-        maddpg.load_checkpoint()
-
+  
+    first_learned= False
+    already_loaded= False
     for i in range(N_EPISODES):
+        if evaluate and first_learned and not already_loaded:
+            maddpg.load_checkpoint()
+            already_loaded= True
+
         dict_obs,info= env.reset()
         obs = [value for value in dict_obs.values()]
         score= 0
@@ -59,8 +63,6 @@ if __name__ == '__main__':
         episode_step= 0
 
         while not any(done):
-            if evaluate:
-                env.render()
             #setof actions for each agent
 
             actions:List[np.ndarray]= maddpg.choose_action(obs)
@@ -83,6 +85,7 @@ if __name__ == '__main__':
             memory.store_transition(obs,state,actions,reward,obs_,state_,done)
 
             if total_steps % 100 == 0 and not evaluate:
+                first_learned= True
                 maddpg.learn(memory)
 
             obs= obs_
@@ -96,10 +99,14 @@ if __name__ == '__main__':
 
         if not evaluate:
             if avg_score > best_score:
-                maddpg.save_checkpoint()
                 best_score= avg_score
 
         if i % PRINT_INTERVAL== 0 and i>0:
+            if not evaluate:
+                if first_learned:
+                    print("saving...")
+                    maddpg.save_checkpoint()
+                    best_score= avg_score
             print("EPISODE",i,"average score {:.1f}".format(avg_score))
 
 

@@ -16,7 +16,7 @@ def obs_list_to_state_vector(observation):
 
 if __name__ == '__main__':
     scenario= "simple"
-    env= simple_adversary_v3.parallel_env(render_mode= None)
+    env= simple_v3.parallel_env(render_mode= "human")
     observations, infos = env.reset(seed=42)
 
     num_agents= len(env.agents)
@@ -33,6 +33,9 @@ if __name__ == '__main__':
     print("Critic dims: ", critic_dims)
     print("Actor dims: ", actor_dims)
     print("Action space: ",num_actions)
+
+    time.sleep(5)
+    exit()
 
     maddpg= MADDPG(actor_dims, critic_dims, num_agents, num_actions,
                     fc1= 64, fc2= 64, alpha= 0.01, beta= 0.01, scenario=scenario, chkpt_dir= 'tmp/maddpg/')

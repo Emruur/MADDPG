@@ -1,8 +1,7 @@
-import torch as T
 from Agent import Agent
 from typing import List, Tuple
-import torch.nn.functional as F
 import numpy as np
+import tensorflow as tf
 
 class MADDPG:
     def __init__(self, actor_dims: List[int], critic_dims: int, n_agents: int, n_actions: int, 
@@ -13,7 +12,6 @@ class MADDPG:
         self.n_agents:int = n_agents  # Number of agents
         self.n_actions:int = n_actions  # Number of actions
         chkpt_dir += scenario  # Directory for saving checkpoints
-        T.autograd.set_detect_anomaly(True)
 
         # Initialize each agent
         for agent_idx in range(self.n_agents):
@@ -44,57 +42,65 @@ class MADDPG:
         if not memory.ready():
             return
 
-        print("LEARNING...")
-
         actor_states, states, actions_perm, rewards, \
         actor_new_states, states_, dones = memory.sample_buffer()
 
-        device = self.agents[0].actor.device
-
-        states = T.tensor(states, dtype=T.float).to(device)
-        actions = T.tensor(np.stack(actions_perm), dtype=T.float).to(device)
-        rewards = T.tensor(rewards, dtype= T.float).to(device)
-        states_ = T.tensor(states_, dtype=T.float).to(device)
-        dones = T.tensor(dones).to(device)
+        states = tf.convert_to_tensor(states, dtype=tf.float32)
+        actions = tf.convert_to_tensor(np.stack(actions_perm), dtype=tf.float32)
+        rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)
+        states_ = tf.convert_to_tensor(states_, dtype=tf.float32)
+        dones = tf.convert_to_tensor(dones, dtype=tf.bool)
 
         all_agents_new_actions = []
         all_agents_new_mu_actions = []
         old_agents_actions = []
 
         for agent_idx, agent in enumerate(self.agents):
-            new_states = T.tensor(actor_new_states[agent_idx], 
-                                 dtype=T.float).to(device)
+            # Convert states to TensorFlow tensors
+            new_states = tf.convert_to_tensor(actor_new_states[agent_idx], dtype=tf.float32)
+            mu_states = tf.convert_to_tensor(actor_states[agent_idx], dtype=tf.float32)
 
+            # Forward pass through the target and regular actor networks
+            new_pi = agent.target_actor(new_states)
+            pi = agent.actor(mu_states)
 
-            new_pi = agent.target_actor.forward(new_states)
-
+            # Append actions for all agents
             all_agents_new_actions.append(new_pi)
-            mu_states = T.tensor(actor_states[agent_idx], 
-                                 dtype=T.float).to(device)
-
-            pi = agent.actor.forward(mu_states)
             all_agents_new_mu_actions.append(pi)
             old_agents_actions.append(actions[agent_idx])
 
-        new_actions = T.cat([acts for acts in all_agents_new_actions], dim=1)
-        mu = T.cat([acts for acts in all_agents_new_mu_actions], dim=1)
-        old_actions = T.cat([acts for acts in old_agents_actions],dim=1)
+        # Concatenate actions for all agents
+        new_actions = tf.concat(all_agents_new_actions, axis=1)
+        mu = tf.concat(all_agents_new_mu_actions, axis=1)
+        old_actions = tf.concat(old_agents_actions, axis=1)
 
         for agent_idx, agent in enumerate(self.agents):
-            critic_value_ = agent.target_critic.forward(states_, new_actions).flatten()
-            critic_value_[dones[:,0]] = 0.0
-            critic_value = agent.critic.forward(states, old_actions).flatten()
+            with tf.GradientTape(persistent=True) as critic_tape:
+                # Forward pass through the target critic and critic networks
+                critic_value_ = agent.target_critic(states_, new_actions)
+                critic_value_ = tf.reshape(critic_value_, [-1])
+                critic_value_ = tf.where(dones[:, 0], tf.zeros_like(critic_value_), critic_value_)
+                
+                critic_value = agent.critic(states, old_actions)
+                critic_value = tf.reshape(critic_value, [-1])
 
-            target = rewards[:,agent_idx] + agent.gamma*critic_value_
-            critic_loss = F.mse_loss(target, critic_value)
-            agent.critic.optimizer.zero_grad()
-            critic_loss.backward(retain_graph=True)
-            agent.critic.optimizer.step()
+                # Calculate the target and critic loss
+                target = rewards[:, agent_idx] + agent.gamma * critic_value_
+                critic_loss = tf.keras.losses.MSE(target, critic_value)
 
-            actor_loss = agent.critic.forward(states, mu).flatten()
-            actor_loss = -T.mean(actor_loss)
-            agent.actor.optimizer.zero_grad()
-            actor_loss.backward(retain_graph=True)
-            agent.actor.optimizer.step()
+            # Compute gradients and update critic weights
+            critic_grad = critic_tape.gradient(critic_loss, agent.critic.trainable_variables)
+            agent.critic.optimizer.apply_gradients(zip(critic_grad, agent.critic.trainable_variables))
 
+            with tf.GradientTape(persistent=True) as actor_tape:
+                # Forward pass through the critic using mu for actor loss
+                actor_loss = agent.critic(states, mu)
+                actor_loss = tf.reshape(actor_loss, [-1])
+                actor_loss = -tf.reduce_mean(actor_loss)
+
+            # Compute gradients and update actor weights
+            actor_grad = actor_tape.gradient(actor_loss, agent.actor.trainable_variables)
+            agent.actor.optimizer.apply_gradients(zip(actor_grad, agent.actor.trainable_variables))
+
+            # Update target networks
             agent.update_network_parameters()

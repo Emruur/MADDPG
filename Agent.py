@@ -1,7 +1,8 @@
-import torch as T
+import os
 from CriticNetwork import CriticNetwork
 from ActorNetwork import ActorNetwork
 import numpy as np
+import tensorflow as tf
 
 class Agent:
     def __init__(self, actor_dims: int, critic_dims: int, n_actions: int, 
@@ -12,6 +13,12 @@ class Agent:
         self.tau: float = tau  # Parameter for soft update of target networks
         self.n_actions: int = n_actions
         self.agent_name: str = 'agent_%s' % agent_idx
+
+        self.ad= actor_dims
+        self.cd= critic_dims
+        self.na= n_actions
+        self.nag= n_agents
+
         # Actor and critic networks
         self.actor = ActorNetwork(alpha, actor_dims, fc1, fc2, n_actions, 
                                   chkpt_dir=chkpt_dir, name=self.agent_name+'_actor')
@@ -30,59 +37,63 @@ class Agent:
         self.update_network_parameters(tau=1)
 
     def choose_action(self, observation: np.ndarray) -> np.ndarray:
-
         observation_np = np.array(observation)
 
         # Add an extra dimension to 'observation_np'
         observation = np.expand_dims(observation_np, axis=0)
 
-        state = T.tensor(observation, dtype=T.float).to(self.actor.device)
-        actions = self.actor.forward(state)
-        noise = T.rand(self.n_actions).to(self.actor.device)
+        # Convert to TensorFlow tensor and process through the actor network
+        state = tf.convert_to_tensor(observation, dtype=tf.float32)
+        actions = self.actor(state)
+
+        # Generate noise and add it to the actions
+        noise = tf.random.uniform(shape=actions.shape)
         action = actions + noise
 
-        return action.detach().cpu().numpy()[0]
+        # Convert the action tensor to a numpy array
+        return action.numpy()[0]
+
 
     def update_network_parameters(self, tau: float = None) -> None:
-        '''
-            Updates the target networks, we dont just copy the parameters 
-            from the network to target for learning stability, taus is the modification ampunt
-        '''
         if tau is None:
             tau = self.tau
 
-        # Soft update of the target networks
-        target_actor_params = self.target_actor.named_parameters()
-        actor_params = self.actor.named_parameters()
+        # Update actor network parameters
+        for target_param, param in zip(self.target_actor.variables, self.actor.variables):
+            target_param.assign(tau * param + (1 - tau) * target_param)
 
-        target_actor_state_dict = dict(target_actor_params)
-        actor_state_dict = dict(actor_params)
-        for name in actor_state_dict:
-            actor_state_dict[name] = tau*actor_state_dict[name].clone() + \
-                    (1-tau)*target_actor_state_dict[name].clone()
+        # Update critic network parameters
+        for target_param, param in zip(self.target_critic.variables, self.critic.variables):
+            target_param.assign(tau * param + (1 - tau) * target_param)
 
-        self.target_actor.load_state_dict(actor_state_dict)
 
-        target_critic_params = self.target_critic.named_parameters()
-        critic_params = self.critic.named_parameters()
+    def build_models(self):
+        dummy_state_actor = tf.random.normal(shape=(1, self.ad))
+        dummy_action = tf.random.normal(shape=(1, self.na))
+        dummy_state_critic = tf.random.normal(shape=(1, self.cd))
+        dummy_combined_input_critic = tf.concat([dummy_state_critic, tf.tile(dummy_action, [1, self.nag])], axis=1)
 
-        target_critic_state_dict = dict(target_critic_params)
-        critic_state_dict = dict(critic_params)
-        for name in critic_state_dict:
-            critic_state_dict[name] = tau*critic_state_dict[name].clone() + \
-                    (1-tau)*target_critic_state_dict[name].clone()
-
-        self.target_critic.load_state_dict(critic_state_dict)
-
+        # Make dummy calls to build the models
+        self.actor(dummy_state_actor)
+        self.target_actor(dummy_state_actor)
+        self.critic(dummy_combined_input_critic, dummy_action)
+        self.target_critic(dummy_combined_input_critic, dummy_action)
     def save_models(self) -> None:
+        return
         # Save checkpoints for all networks
+        
+        self.build_models()
         self.actor.save_checkpoint()
         self.target_actor.save_checkpoint()
         self.critic.save_checkpoint()
         self.target_critic.save_checkpoint()
 
     def load_models(self) -> None:
+        return
         # Load checkpoints for all networks
+        # Create dummy inputs for actor and critic networks
+        self.build_models()
+
         self.actor.load_checkpoint()
         self.target_actor.load_checkpoint()
         self.critic.load_checkpoint()

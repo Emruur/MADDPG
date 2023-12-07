@@ -30,6 +30,7 @@ class ActorNetwork(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=alpha)
         # Device configuration
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
+        print(self.device)
  
         self.to(self.device)  # Move the network to the configured device
 
@@ -38,7 +39,7 @@ class ActorNetwork(nn.Module):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         pi = T.softmax(self.pi(x), dim=1)  # Action probabilities
-
+        
         return pi
 
     def save_checkpoint(self) -> None:

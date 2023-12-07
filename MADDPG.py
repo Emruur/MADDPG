@@ -13,7 +13,7 @@ class MADDPG:
         self.n_agents:int = n_agents  # Number of agents
         self.n_actions:int = n_actions  # Number of actions
         chkpt_dir += scenario  # Directory for saving checkpoints
-        #torch.autograd.set_detect_anomaly(True)
+        T.autograd.set_detect_anomaly(True)
 
         # Initialize each agent
         for agent_idx in range(self.n_agents):
@@ -65,11 +65,13 @@ class MADDPG:
             new_states = T.tensor(actor_new_states[agent_idx], 
                                  dtype=T.float).to(device)
 
+
             new_pi = agent.target_actor.forward(new_states)
 
             all_agents_new_actions.append(new_pi)
             mu_states = T.tensor(actor_states[agent_idx], 
                                  dtype=T.float).to(device)
+
             pi = agent.actor.forward(mu_states)
             all_agents_new_mu_actions.append(pi)
             old_agents_actions.append(actions[agent_idx])

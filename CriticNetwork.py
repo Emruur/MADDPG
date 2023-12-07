@@ -19,7 +19,7 @@ class CriticNetwork(nn.Module):
     def __init__(self, beta: float, input_dims: int, fc1_dims: int, fc2_dims: int, 
                  n_agents: int, n_actions: int, name: str, chkpt_dir: str):
         super(CriticNetwork, self).__init__()
-
+        T.autograd.set_detect_anomaly(True)
         self.chkpt_file: str = os.path.join(chkpt_dir, name)  # Path for the checkpoint file
 
         # Define the fully connected layers

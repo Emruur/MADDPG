@@ -16,7 +16,7 @@ def obs_list_to_state_vector(observation):
 
 if __name__ == '__main__':
     scenario= "simple"
-    env = simple_v3.parallel_env(render_mode=None)
+    env = simple_adversary_v3.parallel_env(render_mode=None)
     observations, infos = env.reset()
 
     num_agents= len(env.agents)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
             if total_steps % 100 == 0 and not evaluate:
                 first_learned= True
-                maddpg.learn(memory)
+                #maddpg.learn(memory)
 
             obs= obs_
 
